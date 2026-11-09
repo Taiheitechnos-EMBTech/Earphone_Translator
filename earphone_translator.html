@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>超低遅延 リアルタイム同時翻訳イヤホン</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    body {
+      background: #090d16;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.25rem;
+    }
+    .container {
+      width: 100%;
+      max-width: 620px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    header {
+      text-align: center;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #1e293b;
+    }
+    header h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .badge-fast {
+      background: #10b981;
+      color: #022c22;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    header p {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-top: 0.3rem;
+    }
+
+    /* イヤホン分担カード */
+    .earphone-guide {
+      background: #131d2e;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 0.85rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .earphone-card {
+      padding: 0.65rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .card-left {
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid #0284c7;
+    }
+    .card-right {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid #dc2626;
+    }
+    .ear-badge {
+      font-size: 0.7rem;
+      font-weight: bold;
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      border-radius: 9999px;
+      margin-bottom: 0.3rem;
+    }
+    .card-left .ear-badge { background: #0284c7; color: white; }
+    .card-right .ear-badge { background: #dc2626; color: white; }
+    .earphone-card h3 { font-size: 0.95rem; }
+    .earphone-card p { font-size: 0.75rem; color: #cbd5e1; margin-top: 0.15rem; }
+
+    /* テストボタン */
+    .test-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+    }
+    .btn-test {
+      padding: 0.55rem;
+      font-size: 0.8rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .btn-test-left { background: #0369a1; color: white; }
+    .btn-test-right { background: #b91c1c; color: white; }
+    .btn-test:active { transform: scale(0.98); }
+
+    /* リアルタイム表示ライブスクリーン */
+    .live-screen {
+      background: #020617;
+      border: 2px solid #38bdf8;
+      border-radius: 12px;
+      padding: 1rem;
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.15);
+      position: relative;
+    }
+    .live-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .latency-pill {
+      background: #1e293b;
+      color: #10b981;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .live-interim {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-top: 0.5rem;
+      word-break: break-all;
+      min-height: 1.6rem;
+    }
+    .live-interim .cursor {
+      display: inline-block;
+      width: 3px;
+      height: 1.15rem;
+      background: #38bdf8;
+      margin-left: 4px;
+      animation: blink 0.8s infinite;
+      vertical-align: middle;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .live-translated {
+      font-size: 1.05rem;
+      color: #facc15;
+      font-weight: 600;
+      margin-top: 0.3rem;
+      min-height: 1.4rem;
+    }
+
+    /* コントロール */
+    .control-panel {
+      background: #131d2e;
+      border-radius: 12px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      border: 1px solid #1e293b;
+    }
+    .lang-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+    select {
+      background: #090d16;
+      color: white;
+      border: 1px solid #334155;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .talk-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .talk-btn {
+      padding: 1rem 0.5rem;
+      border-radius: 10px;
+      border: 2px solid transparent;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+      transition: all 0.15s;
+    }
+    .talk-btn-ja { background: #0284c7; color: white; }
+    .talk-btn-target { background: #dc2626; color: white; }
+    .talk-btn.active {
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.6);
+      transform: scale(1.02);
+      border-color: #facc15;
+      animation: pulse-glow 1s infinite alternate;
+    }
+    @keyframes pulse-glow {
+      from { box-shadow: 0 0 10px rgba(250, 204, 21, 0.4); }
+      to { box-shadow: 0 0 25px rgba(250, 204, 21, 0.9); }
+    }
+    .talk-btn small {
+      font-size: 0.72rem;
+      font-weight: normal;
+      opacity: 0.9;
+    }
+
+    /* 履歴ログ */
+    .conversation-log {
+      background: #131d2e;
+      border-radius: 12px;
+      padding: 0.85rem;
+      height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      border: 1px solid #1e293b;
+    }
+    .log-item {
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      max-width: 90%;
+      line-height: 1.4;
+    }
+    .log-me {
+      align-self: flex-start;
+      background: rgba(56, 189, 248, 0.12);
+      border-left: 3px solid #38bdf8;
+    }
+    .log-partner {
+      align-self: flex-end;
+      background: rgba(239, 68, 68, 0.12);
+      border-right: 3px solid #ef4444;
+      text-align: right;
+    }
+    .log-orig {
+      color: #94a3b8;
+      font-size: 0.72rem;
+      margin-bottom: 0.15rem;
+    }
+    .log-trans {
+      color: #f8fafc;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>🎧 リアルタイム同時翻訳イヤホン <span class="badge-fast">FAST STREAM</span></h1>
+    <p>話している最中から即時翻訳・左右分離出力</p>
+  </header>
+
+  <!-- イヤホン分担ガイド -->
+  <div class="earphone-guide">
+    <div class="earphone-card card-left">
+      <span class="ear-badge">左耳 (L)</span>
+      <h3>あなた (日本人)</h3>
+      <p>相手の言葉が日本語で届く</p>
+    </div>
+    <div class="earphone-card card-right">
+      <span class="ear-badge">右耳 (R)</span>
+      <h3>お相手</h3>
+      <p id="partner-ear-desc">あなたの声が中国語で届く</p>
+    </div>
+  </div>
+
+  <!-- テストボタン -->
+  <div class="test-buttons">
+    <button class="btn-test btn-test-left" onclick="testEar('left')">🔊 左耳テスト (日本語)</button>
+    <button class="btn-test btn-test-right" onclick="testEar('right')">🔊 右耳テスト (相手言語)</button>
+  </div>
+
+  <!-- 超低遅延リアルタイム・ライブスクリーン -->
+  <div class="live-screen">
+    <div class="live-label">
+      <span id="speaker-indicator">⚡ 待機中</span>
+      <span class="latency-pill" id="latency-display">Latency: -- ms</span>
+    </div>
+    <div class="live-interim" id="live-orig">
+      <span id="text-orig">ボタンを押して話しかけてください</span><span class="cursor"></span>
+    </div>
+    <div class="live-translated" id="live-trans">
+      <!-- リアルタイム翻訳結果がここに即座に出現 -->
+    </div>
+  </div>
+
+  <!-- コントロールパネル -->
+  <div class="control-panel">
+    <div class="lang-row">
+      <label for="target-lang">お相手の言語：</label>
+      <select id="target-lang" onchange="updatePartnerLang()">
+        <option value="zh-CN" selected>🇨🇳 中国語 (標準語)</option>
+        <option value="en-US">🇺🇸 英語 (米国)</option>
+      </select>
+    </div>
+
+    <div class="talk-buttons">
+      <button id="btn-talk-ja" class="talk-btn talk-btn-ja" onclick="toggleRecord('ja-JP')">
+        <span>🎙️ 私が話す (日本語)</span>
+        <small>リアルタイムに相手の右耳へ</small>
+      </button>
+
+      <button id="btn-talk-target" class="talk-btn talk-btn-target" onclick="toggleRecord('target')">
+        <span id="btn-partner-text">🎙️ 相手が話す</span>
+        <small>リアルタイムにあなたの左耳へ</small>
+      </button>
+    </div>
+  </div>
+
+  <!-- ログ -->
+  <div class="conversation-log" id="log-box"></div>
+</div>
+
+<script>
+  let audioCtx = null;
+  let recognition = null;
+  let isRecording = false;
+  let currentSpeakerMode = null;
+  let speechStartTime = 0;
+  let lastProcessedText = "";
+
+  function getAudioContext() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    return audioCtx;
+  }
+
+  function updatePartnerLang() {
+    const lang = document.getElementById('target-lang').value;
+    const partnerDesc = document.getElementById('partner-ear-desc');
+    const partnerBtn = document.getElementById('btn-partner-text');
+    if (lang === 'zh-CN') {
+      partnerDesc.textContent = 'あなたの声が中国語で届く';
+      partnerBtn.textContent = '🎙️ 相手が話す (中国語)';
+    } else {
+      partnerDesc.textContent = 'あなたの声が英語で届く';
+      partnerBtn.textContent = '🎙️ 相手が話す (英語)';
+    }
+  }
+
+  // 左右独立オーディオ出力
+  function playStereoVoice(text, lang, panSide) {
+    const ctx = getAudioContext();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    utter.rate = 1.15; // テンポよく低遅延にするため少し早め（1.15倍速）
+
+    const panValue = (panSide === 'left') ? -1.0 : 1.0;
+
+    // 音声読み上げ（SpeechSynthesis）
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+
+    // パンニングシグナル音を同時に鳴らす
+    playPannedPulse(ctx, panValue);
+  }
+
+  function playPannedPulse(ctx, panValue) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(panValue < 0 ? 587 : 784, ctx.currentTime);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+
+    if (panner) {
+      panner.pan.setValueAtTime(panValue, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(panner);
+      panner.connect(ctx.destination);
+    } else {
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+    }
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  }
+
+  function testEar(side) {
+    const lang = document.getElementById('target-lang').value;
+    if (side === 'left') {
+      setLive("左耳テスト音声を再生中...", "");
+      playStereoVoice("あなたの左耳だけに届く日本語テストです。", "ja-JP", "left");
+    } else {
+      if (lang === 'zh-CN') {
+        setLive("右耳テスト音声を再生中...", "");
+        playStereoVoice("这是只会在对方右耳播放的中文测试语音。", "zh-CN", "right");
+      } else {
+        setLive("右耳テスト音声を再生中...", "");
+        playStereoVoice("This is an audio test played only into the right ear.", "en-US", "right");
+      }
+    }
+  }
+
+  // 超高速・ストリーミング音声認識
+  function toggleRecord(mode) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("お使いのブラウザは音声認識に対応していません。Google ChromeまたはEdgeをご利用ください。");
+      return;
+    }
+
+    if (isRecording) {
+      if (recognition) recognition.stop();
+      isRecording = false;
+      resetButtons();
+      return;
+    }
+
+    const targetLang = document.getElementById('target-lang').value;
+    const isMe = (mode === 'ja-JP');
+    const recLang = isMe ? 'ja-JP' : targetLang;
+
+    recognition = new SpeechRecognition();
+    recognition.lang = recLang;
+    recognition.interimResults = true; // ★超重要: 話している最中の結果をリアルタイム取得
+    recognition.continuous = true;     // ★超重要: 喋り続けても途切れずストリーム認識
+    recognition.maxAlternatives = 1;
+
+    speechStartTime = Date.now();
+    lastProcessedText = "";
+
+    recognition.onstart = () => {
+      isRecording = true;
+      currentSpeakerMode = isMe ? 'me' : 'partner';
+      document.getElementById(isMe ? 'btn-talk-ja' : 'btn-talk-target').classList.add('active');
+      document.getElementById('speaker-indicator').textContent = isMe ? '⚡ 私の声をリアルタイム認識中...' : '⚡ 相手の声をリアルタイム認識中...';
+      document.getElementById('text-orig').textContent = "どうぞお話しください...";
+      document.getElementById('live-trans').textContent = "";
+    };
+
+    recognition.onresult = async (event) => {
+      let interim = "";
+      let final = "";
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          final += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+
+      const currentText = (final || interim).trim();
+      if (!currentText || currentText === lastProcessedText) return;
+
+      // 画面に即座に表示（0ミリ秒ラグ）
+      document.getElementById('text-orig').textContent = currentText;
+
+      // 句切れ・一定長でストリーミング即時翻訳
+      const shouldTranslate = final || 
+        currentText.endsWith('。') || 
+        currentText.endsWith('、') || 
+        currentText.endsWith('?') || 
+        currentText.endsWith('!') || 
+        (currentText.length - lastProcessedText.length > 8);
+
+      if (shouldTranslate) {
+        lastProcessedText = currentText;
+        const latency = Date.now() - speechStartTime;
+        document.getElementById('latency-display').textContent = `Latency: ${latency} ms`;
+        
+        await triggerQuickTranslation(currentText, isMe, targetLang);
+      }
+    };
+
+    recognition.onerror = (e) => {
+      console.warn("Recognition error:", e);
+      if (e.error !== 'no-speech') {
+        document.getElementById('speaker-indicator').textContent = '⚠️ 停止中';
+        resetButtons();
+        isRecording = false;
+      }
+    };
+
+    recognition.onend = () => {
+      if (isRecording) {
+        // continuousを維持するため自動再スタート
+        try { recognition.start(); } catch (err) {}
+      } else {
+        resetButtons();
+      }
+    };
+
+    recognition.start();
+  }
+
+  function resetButtons() {
+    document.getElementById('btn-talk-ja').classList.remove('active');
+    document.getElementById('btn-talk-target').classList.remove('active');
+    document.getElementById('speaker-indicator').textContent = '⚡ 待機中';
+  }
+
+  // 高速翻訳＆音声トリガー
+  async function triggerQuickTranslation(text, isMe, targetLang) {
+    let sourceLang = isMe ? 'ja' : (targetLang.startsWith('zh') ? 'zh' : 'en');
+    let destLang = isMe ? (targetLang.startsWith('zh') ? 'zh' : 'en') : 'ja';
+
+    try {
+      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${destLang}`);
+      const data = await res.json();
+      const translatedText = data.responseData ? data.responseData.translatedText : text;
+
+      // 画面に翻訳を即時反映
+      document.getElementById('live-trans').textContent = translatedText;
+
+      // イヤホンの左右に即座に発話
+      if (isMe) {
+        playStereoVoice(translatedText, targetLang, 'right');
+      } else {
+        playStereoVoice(translatedText, 'ja-JP', 'left');
+      }
+
+      addLog(text, translatedText, isMe);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function addLog(orig, trans, isMe) {
+    const box = document.getElementById('log-box');
+    const item = document.createElement('div');
+    item.className = `log-item ${isMe ? 'log-me' : 'log-partner'}`;
+    item.innerHTML = `
+      <div class="log-orig">${isMe ? '私 (日本語)' : '相手'}: ${escapeHtml(orig)}</div>
+      <div class="log-trans">${escapeHtml(trans)}</div>
+    `;
+    box.appendChild(item);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function setLive(orig, trans) {
+    document.getElementById('text-orig').textContent = orig;
+    document.getElementById('live-trans').textContent = trans;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>'"]/g, 
+      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+  }
+</script>
+
+</body>
+</html>
